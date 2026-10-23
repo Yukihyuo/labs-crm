@@ -4,6 +4,7 @@ import { RouterProvider } from "react-router/dom";
 //Paginas
 import Dashboard from "./routes/dashboard/page";
 import Inventory from "./routes/inventory/page";
+import Documents from "./routes/documents/page";
 import Pages from "./routes/pages/page";
 import Roles from "./routes/roles/page";
 import Sales from "./routes/sales/page";
@@ -60,6 +61,12 @@ const router = createBrowserRouter([
         path: "inventory",
         element: <ProtectedModule page="Inventory" type="read" method="block" >
           <Inventory />
+        </ProtectedModule>,
+      },
+      {
+        path: "documents",
+        element: <ProtectedModule page="Inventory" type="read" method="block" >
+          <Documents />
         </ProtectedModule>,
       },
       {
