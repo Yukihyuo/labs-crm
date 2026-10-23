@@ -5,6 +5,19 @@ const DocumentSchema = new mongoose.Schema({
     type: String,
     default: () => new mongoose.Types.ObjectId().toString()
   },
+  brandId: {
+    type: String,
+    required: true,
+    ref: 'Brand',
+    index: true,
+    description: 'Laboratorio/marca al que pertenece el documento'
+  },
+  storeId: {
+    type: String,
+    ref: 'Store',
+    default: null,
+    description: 'Sucursal específica (opcional). Si es null, el documento aplica a toda la marca'
+  },
   documentStructureId: {
     type: String,
     required: true,
@@ -14,9 +27,8 @@ const DocumentSchema = new mongoose.Schema({
   key: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
-    description: 'Identificador único del documento, ej: CONTRATO_RENTA_V1'
+    description: 'Identificador único del documento dentro de la marca, ej: CONTRATO_RENTA_V1'
   },
   name: {
     type: String,
@@ -24,11 +36,17 @@ const DocumentSchema = new mongoose.Schema({
     trim: true,
     description: 'Nombre comercial/público del documento'
   },
-  downloadEndpoint: {
+  area: {
     type: String,
-    required: true,
     trim: true,
-    description: 'Ruta del backend que procesa el PDF, ej: /api/v1/pdf/contrato-renta'
+    default: '',
+    description: 'Área/categoría del documento (ej: hematología, química, urinálisis, consentimiento)'
+  },
+  version: {
+    type: Number,
+    min: 1,
+    default: 1,
+    description: 'Versión de la definición del documento/estudio'
   },
   userType:{
     type: String,
@@ -44,6 +62,9 @@ const DocumentSchema = new mongoose.Schema({
 }, {
   timestamps: true // Te genera automáticamente `createdAt` y `updatedAt`
 });
+
+// La `key` es única dentro de cada marca, no global
+DocumentSchema.index({ brandId: 1, key: 1 }, { unique: true });
 
 const Document = mongoose.model('Document', DocumentSchema);
 export default Document;

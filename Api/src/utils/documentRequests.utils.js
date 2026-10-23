@@ -3,9 +3,7 @@ import DocumentRequest from "../models/DocumentRequest.js";
 const GLOBAL_STATUSES = new Set(["pending", "in_progress", "completed", "sent"])
 
 export const documentRequestPopulate = [
-	{ path: "presetId", select: "title userType" },
-	{ path: "forms.documentId", select: "key name downloadEndpoint userType status" },
-	{ path: "uploads.uploadCatalogId", select: "key title description maxSizeMB allowedExtensions isActive" },
+	{ path: "forms.documentId", select: "key name userType status" },
 ]
 
 export async function updateDocumentRequestStatus(documentRequestId, newStatus) {

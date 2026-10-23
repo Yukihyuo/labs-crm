@@ -19,7 +19,7 @@ const ObjectItemFieldSchema = new mongoose.Schema({
   dataType: {
     type: String,
     required: true,
-    enum: ['string', 'number', 'boolean', 'file'],
+    enum: ['string', 'number', 'boolean'], // 'file' se eliminó: requiere almacenamiento persistente
   },
   required: { type: Boolean, default: false },
 }, { _id: false });
@@ -57,10 +57,44 @@ const DocumentStructureSchema = new mongoose.Schema({
     type: String,
     default: () => new mongoose.Types.ObjectId().toString(),
   },
+  brandId: {
+    type: String,
+    required: true,
+    ref: 'Brand',
+    index: true,
+    description: 'Laboratorio/marca al que pertenece la estructura',
+  },
   title: { type: String, required: true, trim: true },
   sections: { type: [SectionSchema], default: [] },
+  version: {
+    type: Number,
+    min: 1,
+    default: 1,
+    description: 'Versión del esquema; al modificar se crea una nueva versión',
+  },
+  supersedes: {
+    type: String,
+    ref: 'DocumentStructure',
+    default: null,
+    description: 'Referencia a la versión anterior del esquema',
+  },
 }, {
   timestamps: true,
+});
+
+// Garantiza que no existan fieldKey duplicados dentro de la estructura
+DocumentStructureSchema.pre('validate', function preValidate() {
+  const seen = new Set();
+  for (const section of this.sections || []) {
+    for (const field of section.fields || []) {
+      const fieldKey = typeof field?.fieldKey === 'string' ? field.fieldKey.trim() : '';
+      if (!fieldKey) continue;
+      if (seen.has(fieldKey)) {
+        throw new Error(`fieldKey duplicado: "${fieldKey}"`);
+      }
+      seen.add(fieldKey);
+    }
+  }
 });
 
 const DocumentStructure = mongoose.model('DocumentStructure', DocumentStructureSchema);

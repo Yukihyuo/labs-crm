@@ -16,7 +16,7 @@ const ALLOWED_FIELD_TYPES = new Set([
   "string_list",
   "object_list",
 ]);
-const ALLOWED_OBJECT_DATA_TYPES = new Set(["string", "number", "boolean", "file"]);
+const ALLOWED_OBJECT_DATA_TYPES = new Set(["string", "number", "boolean"]);
 
 const normalizeField = (field = {}) => {
   const normalized = {
@@ -97,6 +97,20 @@ const mapLegacyFieldsToSections = (fields = []) => {
   ];
 };
 
+const assertUniqueFieldKeys = (sections = []) => {
+  const seen = new Set();
+  for (const section of sections) {
+    for (const field of section.fields || []) {
+      const fieldKey = typeof field?.fieldKey === "string" ? field.fieldKey.trim() : "";
+      if (!fieldKey) continue;
+      if (seen.has(fieldKey)) {
+        throw new Error(`fieldKey duplicado: "${fieldKey}"`);
+      }
+      seen.add(fieldKey);
+    }
+  }
+};
+
 const resolveStructurePayload = ({ body, fallbackTitle }) => {
   const title =
     (typeof body.structureTitle === "string" && body.structureTitle.trim()) ||
@@ -105,11 +119,15 @@ const resolveStructurePayload = ({ body, fallbackTitle }) => {
     "Estructura de documento";
 
   if (Array.isArray(body.sections)) {
-    return { title, sections: normalizeSections(body.sections) };
+    const sections = normalizeSections(body.sections);
+    assertUniqueFieldKeys(sections);
+    return { title, sections };
   }
 
   if (Array.isArray(body.fields)) {
-    return { title, sections: mapLegacyFieldsToSections(body.fields) };
+    const sections = mapLegacyFieldsToSections(body.fields);
+    assertUniqueFieldKeys(sections);
+    return { title, sections };
   }
 
   return { title, sections: [] };
@@ -151,23 +169,32 @@ router.get("/:id", async (req, res) => {
 
 // ─── CREATE (document + structure together) ───────────────────────────────────
 // POST /api/documents
-// Body: { key, name, downloadEndpoint, status?, structureTitle?, sections?, fields? }
+// Body: { brandId, key, name, area?, status?, userType?, structureTitle?, sections?, fields? }
 router.post("/", async (req, res) => {
   try {
-    const { key, name, downloadEndpoint, status, userType } = req.body;
+    const { brandId, storeId, key, name, area, version, status, userType } = req.body;
 
     const structurePayload = resolveStructurePayload({
       body: req.body,
       fallbackTitle: typeof name === "string" ? name : undefined,
     });
 
-    const structure = await DocumentStructure.create(structurePayload);
+    const structureVersion = typeof version === "number" && version >= 1 ? version : 1;
+
+    const structure = await DocumentStructure.create({
+      ...structurePayload,
+      brandId,
+      version: structureVersion,
+    });
 
     const document = await Document.create({
+      brandId,
+      storeId,
       documentStructureId: structure._id,
       key,
       name,
-      downloadEndpoint,
+      area,
+      version: structureVersion,
       status,
       userType,
     });
@@ -180,14 +207,14 @@ router.post("/", async (req, res) => {
 
 // ─── UPDATE DOCUMENT (metadata only) ─────────────────────────────────────────
 // PUT /api/documents/:id/document
-// Body: { key?, name?, downloadEndpoint?, status?, userType?, structureTitle?, title?, sections?, fields? }
+// Body: { key?, name?, area?, status?, userType?, structureTitle?, title?, sections?, fields? }
 router.put("/:id/document", async (req, res) => {
   try {
-    const { key, name, downloadEndpoint, status, userType, sections, fields, structureTitle, title } = req.body;
+    const { key, name, area, status, userType, sections, fields, structureTitle, title } = req.body;
 
     const document = await Document.findByIdAndUpdate(
       req.params.id,
-      { key, name, downloadEndpoint, status, userType },
+      { key, name, area, status, userType },
       { new: true, runValidators: true, omitUndefined: true }
     );
 

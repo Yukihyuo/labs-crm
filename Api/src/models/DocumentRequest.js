@@ -1,26 +1,26 @@
 import mongoose from 'mongoose';
 
-const UploadItemProgressSchema = new mongoose.Schema({
-  uploadCatalogId: { type: String, ref: 'UploadCatalog', required: true },
-  status: { type: String, enum: ['pending', 'uploaded', 'rejected'], default: 'pending' },
-  fileUrl: { type: String, default: null },
-  fileName: { type: String, default: null },
-  uploadedAt: { type: Date }
-}, { _id: true });
-
+// Progreso por formulario dentro de una solicitud/orden de estudios
 const FormItemProgressSchema = new mongoose.Schema({
   documentId: { type: String, ref: 'Document', required: true },
   status: { type: String, enum: ['pending', 'in_progress', 'completed'], default: 'pending' },
+  // Snapshot de los valores capturados: el resultado no debe cambiar si la estructura se edita después
+  values: { type: mongoose.Schema.Types.Mixed, default: null },
+  resultPdfUrl: { type: String, default: null },
+  renderedAt: { type: Date, default: null },
   completedAt: { type: Date }
 }, { _id: true });
 
 const DocumentRequestSchema = new mongoose.Schema({
   _id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
-  presetId: { type: String, ref: 'DocumentFolderPreset' },
+  brandId: { type: String, required: true, ref: 'Brand', index: true },
+  // Quién levantó la orden de estudios (staff que crea la solicitud)
+  requestedBy: { type: String, required: true, ref: 'Staff', index: true },
+  // A quién pertenece la orden: el usuario destino (cliente/paciente o empresa)
   userId: { type: String, required: true, index: true },
+  targetUserType: { type: String, enum: ['client', 'company'], default: 'client' },
   assignedAdminEmail: { type: String, required: true, trim: true },
   forms: [FormItemProgressSchema],
-  uploads: [UploadItemProgressSchema],
   attachments: [{
     title: { type: String, required: true },
     fileUrl: { type: String, required: true },
@@ -32,6 +32,8 @@ const DocumentRequestSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 DocumentRequestSchema.index({ userId: 1, status: 1 });
+DocumentRequestSchema.index({ requestedBy: 1, status: 1 });
+DocumentRequestSchema.index({ brandId: 1, status: 1 });
 
 DocumentRequestSchema.methods.refreshStatusFromProgress = function refreshStatusFromProgress() {
   if (this.status === 'sent') {
@@ -39,20 +41,16 @@ DocumentRequestSchema.methods.refreshStatusFromProgress = function refreshStatus
   }
 
   const forms = Array.isArray(this.forms) ? this.forms : [];
-  const uploads = Array.isArray(this.uploads) ? this.uploads : [];
 
-  const allFormsCompleted = forms.every((item) => item.status === 'completed');
-  const allUploadsUploaded = uploads.every((item) => item.status === 'uploaded');
-
+  const allFormsCompleted = forms.length > 0 && forms.every((item) => item.status === 'completed');
   const hasStartedForms = forms.some((item) => item.status === 'in_progress' || item.status === 'completed');
-  const hasStartedUploads = uploads.some((item) => item.status === 'uploaded' || item.status === 'rejected');
 
-  if (allFormsCompleted && allUploadsUploaded) {
+  if (allFormsCompleted) {
     this.status = 'completed';
     return this.status;
   }
 
-  this.status = (hasStartedForms || hasStartedUploads) ? 'in_progress' : 'pending';
+  this.status = hasStartedForms ? 'in_progress' : 'pending';
   return this.status;
 };
 
