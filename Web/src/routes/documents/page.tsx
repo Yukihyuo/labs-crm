@@ -23,7 +23,6 @@ import EditDocumentModal from '@/components/documents/EditDocumentModal'
 import NewDownloadRequest from '@/components/documents/NewDownloadRequest'
 import DownloadDocumentModal from '@/components/documents/DownloadDocumentModal'
 import api from "@/utils/api"
-import { downloadDocumentFromEndpoint } from '@/utils/api'
 import { PageHeader } from '@/components/global/PageHeader'
 import { File, MoreHorizontal } from 'lucide-react'
 import {
@@ -34,14 +33,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { toast } from 'react-toastify'
 
 interface DocumentItem {
   _id: string
   documentStructureId: string
   key: string
   name: string
-  downloadEndpoint: string
   userType: "client" | "company"
   status: boolean
   createdAt: string
@@ -139,15 +136,6 @@ function DocumentsTable({ documents, onRefresh }: DocumentsTableProps) {
         <Badge variant={row.original.status ? 'default' : 'secondary'}>
           {row.original.status ? 'Activo' : 'Inactivo'}
         </Badge>
-      ),
-    },
-    {
-      accessorKey: 'downloadEndpoint',
-      header: 'Endpoint',
-      cell: ({ row }) => (
-        <span className='whitespace-normal break-all'>
-          {row.original.downloadEndpoint}
-        </span>
       ),
     },
     {
@@ -254,22 +242,6 @@ interface DownloadButtonProps {
 function DownloadButton({ document, onRefresh }: DownloadButtonProps) {
   const [downloadModalOpen, setDownloadModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
-  const [isDirectDownloadLoading, setIsDirectDownloadLoading] = useState(false)
-
-  const handleDirectDownload = async () => {
-    setIsDirectDownloadLoading(true)
-    try {
-      await downloadDocumentFromEndpoint(document.downloadEndpoint, document.key)
-      toast.success('Documento descargado correctamente')
-    } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        'No fue posible descargar el documento'
-      toast.error(message)
-    } finally {
-      setIsDirectDownloadLoading(false)
-    }
-  }
 
   return (
     <>
@@ -288,14 +260,6 @@ function DownloadButton({ document, onRefresh }: DownloadButtonProps) {
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setDownloadModalOpen(true)}>
             Descargar con formulario
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={isDirectDownloadLoading}
-            onSelect={() => {
-              void handleDirectDownload()
-            }}
-          >
-            {isDirectDownloadLoading ? 'Descargando...' : 'Descarga directa'}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

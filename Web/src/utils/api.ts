@@ -55,24 +55,6 @@ function triggerBrowserDownload(fileBlob: Blob, fileName: string) {
   URL.revokeObjectURL(objectUrl)
 }
 
-export async function downloadDocumentFromEndpoint(endpoint: string, fallbackFileName = "documento.pdf") {
-  const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`
-  const response = await api.get<Blob>(normalizedEndpoint, {
-    responseType: "blob",
-  })
-
-  const contentDisposition = response.headers["content-disposition"] as string | undefined
-  const contentType = (response.headers["content-type"] as string | undefined) ?? "application/pdf"
-
-  const defaultName = fallbackFileName.toLowerCase().endsWith(".pdf")
-    ? fallbackFileName
-    : `${fallbackFileName}.pdf`
-
-  const fileName = parseFileNameFromContentDisposition(contentDisposition, defaultName)
-  const blob = new Blob([response.data], { type: contentType })
-  triggerBrowserDownload(blob, fileName)
-}
-
 export async function postDownloadDocumentFromEndpoint(
   endpoint: string,
   payload: Record<string, unknown>,

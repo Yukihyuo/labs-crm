@@ -34,7 +34,7 @@ type FieldType =
   | "string_list"
   | "object_list"
 
-type ObjectFieldDataType = "string" | "number" | "boolean" | "file"
+type ObjectFieldDataType = "string" | "number" | "boolean"
 
 type ApiUserRole = "client" | "company"
 
@@ -76,7 +76,7 @@ interface SectionConfig {
 interface DocumentForm {
   key: string
   name: string
-  downloadEndpoint: string
+  area: string
   status: boolean
   userType: ApiUserRole
   structureTitle: string
@@ -92,7 +92,7 @@ interface DocumentDetails {
   _id: string
   key: string
   name: string
-  downloadEndpoint: string
+  area?: string
   status: boolean
   userType: ApiUserRole
   documentStructureId?: StructurePayload
@@ -119,7 +119,6 @@ const OBJECT_FIELD_DATA_TYPES: { label: string; value: ObjectFieldDataType }[] =
   { label: "Texto", value: "string" },
   { label: "Numero", value: "number" },
   { label: "Si/No", value: "boolean" },
-  { label: "Archivo", value: "file" },
 ]
 
 function emptyYesNoConfig(): YesNoConfig {
@@ -252,7 +251,7 @@ export default function EditDocumentModal({
   const [form, setForm] = useState<DocumentForm>({
     key: "",
     name: "",
-    downloadEndpoint: "",
+    area: "",
     status: true,
     userType: "client",
     structureTitle: "",
@@ -275,7 +274,7 @@ export default function EditDocumentModal({
     setForm({
       key: "",
       name: "",
-      downloadEndpoint: "",
+      area: "",
       status: true,
       userType: "client",
       structureTitle: "",
@@ -314,7 +313,7 @@ export default function EditDocumentModal({
         setForm({
           key: data.document.key,
           name: data.document.name,
-          downloadEndpoint: data.document.downloadEndpoint,
+          area: data.document.area ?? "",
           status: data.document.status,
           userType: data.document.userType ?? "client",
           structureTitle: normalizedStructure.title,
@@ -678,14 +677,14 @@ export default function EditDocumentModal({
                 </div>
 
                 <div className="flex flex-col gap-1.5 sm:col-span-2">
-                  <Label htmlFor="downloadEndpoint">Endpoint de descarga</Label>
+                  <Label htmlFor="area">Area del documento</Label>
                   <Input
-                    id="downloadEndpoint"
-                    name="downloadEndpoint"
-                    value={form.downloadEndpoint}
+                    id="area"
+                    name="area"
+                    value={form.area}
                     onChange={handleFormChange}
                     disabled={submitting}
-                    required
+                    placeholder="Ej: hematologia, quimica, consentimiento"
                   />
                 </div>
 

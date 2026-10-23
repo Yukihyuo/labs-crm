@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import { ArrowDownIcon, ArrowUpIcon, PlusCircleIcon, PlusIcon, Trash2Icon } from "lucide-react"
 import api from "@/utils/api"
+import { useAuthStore } from "@/store/authStore"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,7 +27,7 @@ type FieldType =
   | "string_list"
   | "object_list"
 
-type ObjectFieldDataType = "string" | "number" | "boolean" | "file"
+type ObjectFieldDataType = "string" | "number" | "boolean"
 
 interface FieldOption {
   label: string
@@ -66,7 +67,7 @@ interface SectionConfig {
 interface DocumentForm {
   key: string
   name: string
-  downloadEndpoint: string
+  area: string
   status: boolean
   structureTitle: string
 }
@@ -87,7 +88,6 @@ const OBJECT_FIELD_DATA_TYPES: { label: string; value: ObjectFieldDataType }[] =
   { label: "Texto", value: "string" },
   { label: "Numero", value: "number" },
   { label: "Si/No", value: "boolean" },
-  { label: "Archivo", value: "file" },
 ]
 
 function emptyYesNoConfig(): YesNoConfig {
@@ -135,10 +135,12 @@ export default function NewDocumentModal({ onSuccess }: NewDocumentModalProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const brandId = useAuthStore((state) => state.getBrandId())
+
   const [form, setForm] = useState<DocumentForm>({
     key: "",
     name: "",
-    downloadEndpoint: "",
+    area: "",
     status: true,
     structureTitle: "",
   })
@@ -432,7 +434,7 @@ export default function NewDocumentModal({ onSuccess }: NewDocumentModalProps) {
     setError(null)
     setLoading(true)
     try {
-      await api.post("/api/documents", { ...form, sections })
+      await api.post("/api/documents", { ...form, brandId, sections })
       setOpen(false)
       resetForm()
       onSuccess?.()
@@ -447,7 +449,7 @@ export default function NewDocumentModal({ onSuccess }: NewDocumentModalProps) {
   }
 
   function resetForm() {
-    setForm({ key: "", name: "", downloadEndpoint: "", status: true, structureTitle: "" })
+    setForm({ key: "", name: "", area: "", status: true, structureTitle: "" })
     setSections([emptySection(1)])
     setError(null)
   }
@@ -487,13 +489,13 @@ export default function NewDocumentModal({ onSuccess }: NewDocumentModalProps) {
               </div>
 
               <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <Label htmlFor="downloadEndpoint">Endpoint de descarga</Label>
+                <Label htmlFor="area">Area del documento</Label>
                 <Input
-                  id="downloadEndpoint"
-                  name="downloadEndpoint"
-                  value={form.downloadEndpoint}
+                  id="area"
+                  name="area"
+                  value={form.area}
                   onChange={handleFormChange}
-                  required
+                  placeholder="Ej: hematologia, quimica, consentimiento"
                 />
               </div>
 

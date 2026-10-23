@@ -35,7 +35,7 @@ type FieldType =
   | "string_list"
   | "object_list"
 
-type ObjectFieldDataType = "string" | "number" | "boolean" | "file"
+type ObjectFieldDataType = "string" | "number" | "boolean"
 type ApiUserRole = "client" | "company"
 
 const CLIENT_ROLE_ID = "6a156a603a5d7ea978fbb13c"
@@ -70,12 +70,7 @@ interface ObjectFieldConfig {
   required?: boolean
 }
 
-interface ObjectFileValue {
-  fileUrl: string
-  fileName: string
-}
-
-type ObjectItemValue = Record<string, string | number | boolean | ObjectFileValue | undefined>
+type ObjectItemValue = Record<string, string | number | boolean | undefined>
 
 interface DocumentField {
   fieldKey: string
@@ -105,7 +100,6 @@ interface DocumentDetails {
   _id: string
   key: string
   name: string
-  downloadEndpoint: string
   userType: ApiUserRole
   documentStructureId?: DocumentStructure
 }
@@ -213,13 +207,6 @@ function getObjectItemError(objectFields: ObjectFieldConfig[], item: ObjectItemV
     const value = item[objectField.key]
 
     if (objectField.dataType === "boolean") continue
-
-    if (objectField.dataType === "file") {
-      if (objectField.required && !value) {
-        return `${objectField.tag} es requerido`
-      }
-      continue
-    }
 
     const isEmpty = value === undefined || value === null || String(value).trim() === ""
     if (objectField.required && isEmpty) {
@@ -353,7 +340,6 @@ export default function DownloadDocumentModal({
   const [values, setValues] = useState<FieldValues>({})
   const [listDrafts, setListDrafts] = useState<ListDraftValues>({})
   const [objectDrafts, setObjectDrafts] = useState<ObjectDraftValues>({})
-  const [uploadingObjectFile, setUploadingObjectFile] = useState<Record<string, boolean>>({})
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [requestError, setRequestError] = useState<string | null>(null)
   const [users, setUsers] = useState<RoleUser[]>([])
@@ -393,7 +379,6 @@ export default function DownloadDocumentModal({
     setValues({})
     setListDrafts({})
     setObjectDrafts({})
-    setUploadingObjectFile({})
     setFieldErrors({})
     setRequestError(null)
     setUsers([])
@@ -510,36 +495,12 @@ export default function DownloadDocumentModal({
   const updateObjectDraftValue = (
     fieldKey: string,
     objectKey: string,
-    value: string | number | boolean | ObjectFileValue
+    value: string | number | boolean
   ) => {
     setObjectDrafts((prev) => ({
       ...prev,
       [fieldKey]: { ...(prev[fieldKey] ?? {}), [objectKey]: value },
     }))
-  }
-
-  const handleObjectFileSelect = async (fieldKey: string, objectKey: string, file: File | null) => {
-    if (!file) return
-
-    const uploadKey = `${fieldKey}.${objectKey}`
-    setUploadingObjectFile((prev) => ({ ...prev, [uploadKey]: true }))
-
-    try {
-      const formData = new FormData()
-      formData.append("file", file)
-      const { data } = await api.post<{ fileUrl: string; fileName: string }>(
-        "/api/documents/upload-field-file",
-        formData
-      )
-      updateObjectDraftValue(fieldKey, objectKey, { fileUrl: data.fileUrl, fileName: data.fileName })
-    } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        "No fue posible subir el archivo"
-      toast.error(message)
-    } finally {
-      setUploadingObjectFile((prev) => ({ ...prev, [uploadKey]: false }))
-    }
   }
 
   const addObjectListItem = (field: DocumentField) => {
@@ -628,8 +589,6 @@ export default function DownloadDocumentModal({
                   itemValue === undefined || itemValue === "" ? undefined : Number(itemValue)
               } else if (objectField.dataType === "boolean") {
                 normalizedItem[objectField.key] = Boolean(itemValue)
-              } else if (objectField.dataType === "file") {
-                normalizedItem[objectField.key] = itemValue ?? undefined
               } else {
                 normalizedItem[objectField.key] = itemValue ?? ""
               }
@@ -660,8 +619,8 @@ export default function DownloadDocumentModal({
 
     try {
       await postDownloadDocumentFromEndpoint(
-        documentDetails.downloadEndpoint,
-        payload,
+        `/api/documents/${documentDetails._id}/render`,
+        { values: payload },
         documentDetails.key
       )
 
@@ -929,8 +888,6 @@ export default function DownloadDocumentModal({
                               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 {(field.objectFields ?? []).map((objectField) => {
                                   const draftValue = objectDrafts[field.fieldKey]?.[objectField.key]
-                                  const uploadKey = `${field.fieldKey}.${objectField.key}`
-                                  const isUploading = Boolean(uploadingObjectFile[uploadKey])
 
                                   return (
                                     <div className="flex flex-col gap-1.5" key={objectField.key}>
@@ -985,29 +942,6 @@ export default function DownloadDocumentModal({
                                           </Button>
                                         </div>
                                       ) : null}
-
-                                      {objectField.dataType === "file" ? (
-                                        <div className="flex flex-col gap-1">
-                                          <Input
-                                            type="file"
-                                            onChange={(event) =>
-                                              handleObjectFileSelect(
-                                                field.fieldKey,
-                                                objectField.key,
-                                                event.target.files?.[0] ?? null
-                                              )
-                                            }
-                                            disabled={submitting || isUploading}
-                                          />
-                                          {isUploading ? (
-                                            <p className="text-xs text-muted-foreground">Subiendo archivo...</p>
-                                          ) : (draftValue as ObjectFileValue | undefined)?.fileName ? (
-                                            <p className="text-xs text-muted-foreground">
-                                              {(draftValue as ObjectFileValue).fileName}
-                                            </p>
-                                          ) : null}
-                                        </div>
-                                      ) : null}
                                     </div>
                                   )
                                 })}
@@ -1036,9 +970,6 @@ export default function DownloadDocumentModal({
                                           const itemValue = item[objectField.key]
                                           if (objectField.dataType === "boolean") {
                                             return `${objectField.tag}: ${itemValue ? "Si" : "No"}`
-                                          }
-                                          if (objectField.dataType === "file") {
-                                            return `${objectField.tag}: ${(itemValue as ObjectFileValue | undefined)?.fileName ?? "-"}`
                                           }
                                           return `${objectField.tag}: ${itemValue ?? "-"}`
                                         })
